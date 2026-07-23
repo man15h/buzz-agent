@@ -38,7 +38,7 @@ if [ ! -f "$BOOT_MARKER" ] && [ -n "${BUZZ_ACP_AGENT_OWNER:-}" ] && command -v b
         for ch in $(echo "${BUZZ_ACP_CHANNELS:-}" | tr "," " "); do
           [ -n "$ch" ] && { buzz channels join --channel "$ch" || true; }
         done
-        buzz dms open "$BUZZ_ACP_AGENT_OWNER"
+        buzz dms open --pubkey "$BUZZ_ACP_AGENT_OWNER"
       '; then
     gosu "${PUID}:${PGID}" touch "$BOOT_MARKER" 2>/dev/null || true
     echo "[bootstrap] done"
