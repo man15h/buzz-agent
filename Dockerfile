@@ -17,14 +17,25 @@ RUN cargo build --release --locked -p buzz-acp -p buzz-cli --bin buzz-acp --bin 
     && strip target/release/buzz-acp target/release/buzz
 
 FROM node:24-bookworm-slim
+# Runtime toolset: parity with the code-server env so agents can do real work —
+# shell tooling, python, build tools, ssh git remotes, plus the Chromium/
+# Playwright runtime libs + fonts and bubblewrap (Claude Code sandbox) that the
+# code-server image adds. Keep the two lists in sync (apps/cm3588/code-server/Dockerfile).
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      ca-certificates libssl3 git tini gosu && rm -rf /var/lib/apt/lists/*
+      ca-certificates libssl3 git tini gosu \
+      curl wget jq ripgrep less procps zip unzip rsync openssh-client \
+      build-essential python3 python3-pip python3-venv \
+      tmux bubblewrap \
+      libglib2.0-0 libnspr4 libnss3 libatk1.0-0 libatk-bridge2.0-0 libdbus-1-3 \
+      libcups2 libxkbcommon0 libatspi2.0-0 libxcomposite1 libxdamage1 libxfixes3 \
+      libxrandr2 libgbm1 libcairo2 libpango-1.0-0 libasound2 \
+      fonts-liberation fonts-noto-color-emoji \
+      && rm -rf /var/lib/apt/lists/*
 # Claude Code + its ACP adapter (what buzz-acp drives over stdio)
 RUN npm install -g @agentclientprotocol/claude-agent-acp @anthropic-ai/claude-code
 COPY --from=builder /build/target/release/buzz-acp /usr/local/bin/buzz-acp
 COPY --from=builder /build/target/release/buzz /usr/local/bin/buzz
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
-ENV BUZZ_ACP_AGENT_COMMAND=claude-agent-acp \
-    BUZZ_ACP_RESPOND_TO=owner-only
+ENV BUZZ_ACP_AGENT_COMMAND=claude-agent-acp
 ENTRYPOINT ["tini", "--", "/usr/local/bin/entrypoint.sh"]
