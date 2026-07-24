@@ -1,7 +1,7 @@
 # Buzz agent for the code-server environment: buzz-acp + buzz CLI (from source)
 # + Claude Code. Runs headless on cm3588, works in its OWN checkout under
 # /workspace, routes Claude through code-server's pii-proxy. Never touches your Mac.
-ARG BUZZ_REF=v0.4.22
+ARG BUZZ_REF=v0.4.24
 
 # Rust 1.95 to match Buzz's rust-toolchain.toml (channel = "1.95.0").
 FROM rust:1.95-bookworm AS builder

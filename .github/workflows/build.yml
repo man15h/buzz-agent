@@ -11,7 +11,7 @@ on:
       buzz_ref:
         description: "block/buzz ref to build buzz-acp from (a release tag)"
         required: true
-        default: "v0.4.22"
+        default: "v0.4.24"
 
 concurrency:
   group: build-buzz-agent
@@ -27,7 +27,7 @@ jobs:
       - uses: actions/checkout@v4    # this repo: Dockerfile + entrypoint.sh
       - id: ref
         # workflow_dispatch supplies buzz_ref; push builds the default.
-        run: echo "buzz_ref=${{ github.event.inputs.buzz_ref || 'v0.4.22' }}" >> "$GITHUB_OUTPUT"
+        run: echo "buzz_ref=${{ github.event.inputs.buzz_ref || 'v0.4.24' }}" >> "$GITHUB_OUTPUT"
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
         with:
