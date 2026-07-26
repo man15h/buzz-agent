@@ -1,5 +1,7 @@
 # Place this at .github/workflows/build.yml in your GitHub repo (e.g. man15h/buzz-agent).
-# Builds the buzz-agent image on a native arm64 runner (off the NAS) and pushes to GHCR.
+# Builds the buzz-agent image natively per-arch (arm64 for cm3588, amd64 for
+# m70q) and merges the two into one multi-arch tag on GHCR. No QEMU — each
+# platform gets a free native runner (public repos).
 # The Dockerfile clones block/buzz at BUZZ_REF at build time — no fork of block/buzz needed.
 name: Build buzz-agent image
 
@@ -17,9 +19,20 @@ concurrency:
   group: build-buzz-agent
   cancel-in-progress: true
 
+env:
+  IMAGE: ghcr.io/${{ github.repository_owner }}/buzz-agent
+
 jobs:
   build:
-    runs-on: ubuntu-24.04-arm        # free native arm64 runner (public repos) — no QEMU
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm    # free native arm64 runner (public repos)
+          - platform: linux/amd64
+            runner: ubuntu-24.04
+    runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
       packages: write                # push to GHCR
@@ -28,6 +41,9 @@ jobs:
       - id: ref
         # workflow_dispatch supplies buzz_ref; push builds the default.
         run: echo "buzz_ref=${{ github.event.inputs.buzz_ref || 'v0.4.24' }}" >> "$GITHUB_OUTPUT"
+      - id: plat
+        # linux/arm64 → linux-arm64 (artifact names + cache scopes can't contain /)
+        run: echo "slug=$(echo '${{ matrix.platform }}' | tr / -)" >> "$GITHUB_OUTPUT"
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
         with:
@@ -38,19 +54,56 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          platforms: linux/arm64
-          push: true
+          platforms: ${{ matrix.platform }}
           provenance: true
           sbom: true
           build-args: |
             BUZZ_REF=${{ steps.ref.outputs.buzz_ref }}
-          tags: |
-            ghcr.io/${{ github.repository_owner }}/buzz-agent:${{ steps.ref.outputs.buzz_ref }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # Push by digest only — the tag is created by the merge job below.
+          outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=gha,scope=${{ steps.plat.outputs.slug }}
+          cache-to: type=gha,mode=max,scope=${{ steps.plat.outputs.slug }}
+      - name: Export digest
+        run: |
+          mkdir -p /tmp/digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests/${digest#sha256:}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: digest-${{ steps.plat.outputs.slug }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  merge:
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      packages: write
+    steps:
+      - id: ref
+        run: echo "buzz_ref=${{ github.event.inputs.buzz_ref || 'v0.4.24' }}" >> "$GITHUB_OUTPUT"
+      - uses: actions/download-artifact@v4
+        with:
+          path: /tmp/digests
+          pattern: digest-*
+          merge-multiple: true
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create multi-arch manifest
+        working-directory: /tmp/digests
+        run: |
+          docker buildx imagetools create \
+            -t "$IMAGE:${{ steps.ref.outputs.buzz_ref }}" \
+            $(printf "$IMAGE@sha256:%s " *)
       - name: Output digest
         run: |
-          echo "Pushed ghcr.io/${{ github.repository_owner }}/buzz-agent:${{ steps.ref.outputs.buzz_ref }}"
-          echo "Digest: ${{ steps.build.outputs.digest }}"
+          docker buildx imagetools inspect "$IMAGE:${{ steps.ref.outputs.buzz_ref }}"
+          DIGEST=$(docker buildx imagetools inspect "$IMAGE:${{ steps.ref.outputs.buzz_ref }}" --format '{{json .Manifest.Digest}}' | tr -d '"')
+          echo "Pushed $IMAGE:${{ steps.ref.outputs.buzz_ref }} (multi-arch: arm64 + amd64)"
           echo "Pin the homelab compose to:"
-          echo "  ghcr.io/${{ github.repository_owner }}/buzz-agent:${{ steps.ref.outputs.buzz_ref }}@${{ steps.build.outputs.digest }}"
+          echo "  $IMAGE:${{ steps.ref.outputs.buzz_ref }}@$DIGEST"
