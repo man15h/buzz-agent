@@ -18,7 +18,7 @@ RUN git clone --depth 1 --branch "${BUZZ_REF}" https://github.com/block/buzz .
 RUN cargo build --release --locked -p buzz-acp -p buzz-cli --bin buzz-acp --bin buzz \
     && strip target/release/buzz-acp target/release/buzz
 
-FROM node:24-bookworm-slim
+FROM node:24.22.1-bookworm-slim
 # Runtime toolset so agents can do real work: shell tooling, python, build
 # tools, ssh git remotes, plus the Chromium/Playwright runtime libs + fonts and
 # bubblewrap (Claude Code sandbox). Everything here has a caller in
