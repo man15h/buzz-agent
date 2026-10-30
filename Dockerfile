@@ -44,7 +44,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # the diff to explain it. Bump ACP_VERSION on purpose, and check
 # `claude-agent-acp` still accepts your default model afterwards.
 # Claude Code floats because we want current.
-ARG ACP_VERSION=0.99.1
+# Held at 0.94.0: 0.95.0+ breaks buzz-acp's v2 initialize. From 0.95.0 the
+# adapter validates protocolVersion 2 against the real v2 schema, which wants
+# `info` where buzz-acp (desktop-v0.5.28) sends `clientInfo`, and every agent
+# fails to start with -32602 Invalid params. Don't bump past 0.94 until Buzz
+# fixes it upstream; pipe buzz-acp's initialize into a candidate first.
+ARG ACP_VERSION=0.94.0
 RUN npm install -g "@agentclientprotocol/claude-agent-acp@${ACP_VERSION}" @anthropic-ai/claude-code
 # Two Claude Code binaries ship, so the build log records both: the floating
 # global CLI, and the adapter's bundled SDK binary — the one buzz-acp actually
