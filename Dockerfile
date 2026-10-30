@@ -1,10 +1,10 @@
 # Headless Buzz agent: buzz-acp + buzz CLI (built from source) + Claude Code,
 # plus Grok Build for agents that run on xAI. Works in its own checkout under
 # /workspace.
-ARG BUZZ_REF=desktop-v0.5.22
+ARG BUZZ_REF=desktop-v0.5.28
 
 # Rust 1.95 to match Buzz's rust-toolchain.toml (channel = "1.95.0" at
-# desktop-v0.5.22; upstream renamed its tags from v0.5.x to desktop-v0.5.x
+# desktop-v0.5.28; upstream renamed its tags from v0.5.x to desktop-v0.5.x
 # after v0.5.2).
 FROM rust:1.95-bookworm AS builder
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -18,7 +18,7 @@ RUN git clone --depth 1 --branch "${BUZZ_REF}" https://github.com/block/buzz .
 RUN cargo build --release --locked -p buzz-acp -p buzz-cli --bin buzz-acp --bin buzz \
     && strip target/release/buzz-acp target/release/buzz
 
-FROM node:24.22.1-bookworm-slim
+FROM node:24.22.2-bookworm-slim
 # Runtime toolset so agents can do real work: shell tooling, python, build
 # tools, ssh git remotes, plus the Chromium/Playwright runtime libs + fonts and
 # bubblewrap (Claude Code sandbox). Everything here has a caller in
@@ -44,7 +44,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # the diff to explain it. Bump ACP_VERSION on purpose, and check
 # `claude-agent-acp` still accepts your default model afterwards.
 # Claude Code floats because we want current.
-ARG ACP_VERSION=0.81.0
+ARG ACP_VERSION=0.99.1
 RUN npm install -g "@agentclientprotocol/claude-agent-acp@${ACP_VERSION}" @anthropic-ai/claude-code
 # Two Claude Code binaries ship, so the build log records both: the floating
 # global CLI, and the adapter's bundled SDK binary — the one buzz-acp actually
@@ -64,8 +64,8 @@ RUN claude --version \
 # Auto-update is the agent's job to refuse, not the image's to hide: the
 # binary self-updates into $HOME/.grok/bin unless told not to, so a Grok
 # agent's BUZZ_ACP_AGENT_ARGS must carry --no-auto-update (README).
-ARG GROK_VERSION=1.0.13
-ARG GROK_SHA256=edf79521581bb5e6b95abef848491a6a742e860da3e237ebe86a280d30dce4c1
+ARG GROK_VERSION=1.0.70
+ARG GROK_SHA256=22d281c5964c5444147328096ba2a221f3f0874c6858e27c825656a80f6e58e9
 RUN curl -fsSL --connect-timeout 10 -o /usr/local/bin/grok \
       "https://x.ai/cli/grok-${GROK_VERSION}-linux-x86_64" \
     && echo "${GROK_SHA256}  /usr/local/bin/grok" | sha256sum -c - \
