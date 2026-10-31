@@ -76,6 +76,20 @@ RUN curl -fsSL --connect-timeout 10 -o /usr/local/bin/grok \
     && echo "${GROK_SHA256}  /usr/local/bin/grok" | sha256sum -c - \
     && chmod 0755 /usr/local/bin/grok \
     && grok --version
+# Android platform-tools (adb, fastboot), so an agent can drive a phone or TV
+# passed through over USB. The versioned zip, not the "-latest" URL, so a
+# rebuild can't change the tools; the sha1 Google publishes for it in
+# repository2-3.xml matches the download this sha256 was taken from. Bump the
+# two together.
+ARG PLATFORM_TOOLS_VERSION=37.0.1
+ARG PLATFORM_TOOLS_SHA256=d230f13842f60f782a8645f9c813f8f845bf36089ea7289f28c48f17979313f1
+RUN curl -fsSL --connect-timeout 10 -o /tmp/platform-tools.zip \
+      "https://dl.google.com/android/repository/platform-tools_r${PLATFORM_TOOLS_VERSION}-linux.zip" \
+    && echo "${PLATFORM_TOOLS_SHA256}  /tmp/platform-tools.zip" | sha256sum -c - \
+    && unzip -q /tmp/platform-tools.zip -d /opt \
+    && rm /tmp/platform-tools.zip \
+    && ln -s /opt/platform-tools/adb /opt/platform-tools/fastboot /usr/local/bin/ \
+    && adb version && fastboot --version
 COPY --from=builder /build/target/release/buzz-acp /usr/local/bin/buzz-acp
 COPY --from=builder /build/target/release/buzz /usr/local/bin/buzz
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh

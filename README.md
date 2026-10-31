@@ -32,6 +32,7 @@ a native arm64 job rather than emulating.
 | `ARG BUZZ_REF` | the Rust side — `buzz-acp` and `buzz`, compiled from `block/buzz` |
 | `ARG ACP_VERSION` | `@agentclientprotocol/claude-agent-acp`, which decides the accepted `BUZZ_ACP_MODEL` values |
 | `ARG GROK_VERSION` + `ARG GROK_SHA256` | Grok Build, the static binary from `https://x.ai/cli/grok-<version>-linux-x86_64`; the installer script is not used because it pins neither |
+| `ARG PLATFORM_TOOLS_VERSION` + `ARG PLATFORM_TOOLS_SHA256` | Android `adb` and `fastboot`, from the versioned `platform-tools_r<version>-linux.zip` on `dl.google.com`, unpacked to `/opt/platform-tools` |
 | nothing | `@anthropic-ai/claude-code` — floats to latest on every build, on purpose |
 
 Bumping `ACP_VERSION` can change agent model behaviour: an unrecognised
